@@ -6,15 +6,22 @@
     <title>数据采集系统</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        .camera-view, .snapshot-canvas { border-radius: 0.5rem; border: 2px solid #e5e7eb; background-color: #f9fafb; }
-        .video-container { position: relative; background-color: #111827; border-radius: 0.5rem; overflow: hidden; aspect-ratio: 16 / 9; }
-        .snapshot-canvas { display: none; }
-        .page { display: none; }
-        .page.active { display: block; }
-        /* AI分析时的遮罩层样式 */
+        .video-container {
+            position: relative;
+            background-color: #111827;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            aspect-ratio: 16 / 9;
+        }
+        .snapshot-canvas {
+            display: none;
+        }
         .analysis-overlay {
             position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
             background-color: rgba(0, 0, 0, 0.7);
             color: white;
             display: flex;
@@ -25,78 +32,177 @@
             border-radius: 0.5rem;
             z-index: 10;
         }
+        .zoom-slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            background: #d1d5db;
+            outline: none;
+            border-radius: 4px;
+            opacity: 0.7;
+            transition: opacity .2s;
+        }
+        .zoom-slider:hover {
+            opacity: 1;
+        }
+        .zoom-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #4f46e5;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+        .zoom-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #4f46e5;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+        .scalable-video {
+            transition: transform 0.2s ease-in-out;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
     </style>
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
-<div class="container mx-auto max-w-2xl bg-white rounded-xl shadow-lg">
-    <div id="main-content" class="p-6 md:p-8">
-        <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">生理特征数据采集系统</h1>
+<div class="container mx-auto max-w-5xl bg-white rounded-xl shadow-lg">
+    <div id="main-content" class="p-8 md:p-12">
+        <h1 class="text-4xl font-bold text-center text-gray-800 mb-10">数据采集系统</h1>
         <div id="globalMessage" class="mb-6 p-4 rounded-md text-center font-medium hidden"></div>
-
-        <!-- 认证页面容器 -->
-        <div id="authPage" class="page">
-            <!-- 登录表单 -->
+        <div id="authPage" class="hidden">
             <form id="loginForm" class="space-y-6">
-                <h2 class="text-2xl font-semibold text-center text-gray-700">用户登录</h2>
-                <div><label for="loginUsername" class="block text-sm font-medium text-gray-700">用户名</label><input type="text" id="loginUsername" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"></div>
-                <div><label for="loginPassword" class="block text-sm font-medium text-gray-700">密码</label><input type="password" id="loginPassword" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"></div>
-                <button type="submit" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700">登录</button>
-                <p class="text-center text-sm text-gray-600">还没有账户? <a href="#" id="showRegisterLink" class="font-medium text-indigo-600 hover:text-indigo-500">立即注册</a></p>
+                <h2 class="text-3xl font-semibold text-center text-gray-700">用户登录</h2>
+                <div>
+                    <label for="loginUsername" class="block text-base font-medium text-gray-700">用户名</label>
+                    <input type="text" id="loginUsername" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-base">
+                </div>
+                <div>
+                    <label for="loginPassword" class="block text-base font-medium text-gray-700">密码</label>
+                    <input type="password" id="loginPassword" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-base">
+                </div>
+                <button type="submit" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-base font-bold text-white bg-indigo-600 hover:bg-indigo-700">登录</button>
+                <p class="text-center text-base text-gray-600">还没有账户? <a href="#" id="showRegisterLink" class="font-medium text-indigo-600 hover:text-indigo-500">立即注册</a></p>
             </form>
-            <!-- 注册表单 (默认隐藏) -->
             <form id="registerForm" class="space-y-6 hidden">
-                <h2 class="text-2xl font-semibold text-center text-gray-700">新用户注册</h2>
-                <div><label for="registerUsername" class="block text-sm font-medium text-gray-700">用户名</label><input type="text" id="registerUsername" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"></div>
-                <div><label for="registerPassword" class="block text-sm font-medium text-gray-700">密码</label><input type="password" id="registerPassword" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"></div>
-                <button type="submit" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-bold text-white bg-green-600 hover:bg-green-700">注册</button>
-                <p class="text-center text-sm text-gray-600">已有账户? <a href="#" id="showLoginLink" class="font-medium text-indigo-600 hover:text-indigo-500">返回登录</a></p>
+                <h2 class="text-3xl font-semibold text-center text-gray-700">新用户注册</h2>
+                <div>
+                    <label for="registerUsername" class="block text-base font-medium text-gray-700">用户名</label>
+                    <input type="text" id="registerUsername" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-base">
+                </div>
+                <div>
+                    <label for="registerPassword" class="block text-base font-medium text-gray-700">密码</label>
+                    <input type="password" id="registerPassword" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-base">
+                </div>
+                <button type="submit" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-base font-bold text-white bg-green-600 hover:bg-green-700">注册</button>
+                <p class="text-center text-base text-gray-600">已有账户? <a href="#" id="showLoginLink" class="font-medium text-indigo-600 hover:text-indigo-500">返回登录</a></p>
             </form>
         </div>
 
-        <!-- 数据采集与查询页面 -->
-        <div id="submissionPage" class="page">
-            <div class="flex justify-between items-center mb-4 border-b pb-4">
-                <span id="welcomeUser" class="font-medium text-gray-700 text-lg"></span>
+        <div id="submissionPage" class="hidden">
+            <div class="flex justify-between items-center mb-6 border-b pb-6">
+                <span id="welcomeUser" class="font-medium text-gray-700 text-xl"></span>
                 <div>
-                    <button id="viewMyDataBtn" class="text-sm bg-blue-500 text-white font-semibold py-1 px-3 rounded-md hover:bg-blue-600 mr-2">查询我的数据</button>
-                    <button id="logoutBtn" class="text-sm bg-red-500 text-white font-semibold py-1 px-3 rounded-md hover:bg-red-600">退出登录</button>
+                    <button id="viewMyDataBtn" class="text-base bg-blue-500 text-white font-semibold py-2 px-4 rounded-md hover:bg-blue-600 mr-3">查询我的数据</button>
+                    <button id="logoutBtn" class="text-base bg-red-500 text-white font-semibold py-1 px-3 rounded-md hover:bg-red-600">退出登录</button>
                 </div>
             </div>
-            <form id="submissionForm" class="space-y-6">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 border rounded-lg bg-gray-50">
-                    <div><label for="age" class="block text-sm font-medium text-gray-700">年龄</label><input type="number" id="age" name="age" min="1" max="120" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"></div>
-                    <div><label for="gender" class="block text-sm font-medium text-gray-700">性别</label><select id="gender" name="gender" required class="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm"><option value="男">男</option><option value="女">女</option></select></div>
-                    <div><label for="height" class="block text-sm font-medium text-gray-700">身高 (cm)</label><input type="number" id="height" name="height" step="0.1" min="50" max="250" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"></div>
-                    <div><label for="weight" class="block text-sm font-medium text-gray-700">体重 (kg)</label><input type="number" id="weight" name="weight" step="0.1" min="10" max="300" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"></div>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-6">
-                    <!-- 面相采集 -->
-                    <div class="space-y-2">
-                        <h2 class="text-xl font-semibold text-gray-700 text-center">面相采集</h2>
-                        <div id="face-container" class="video-container"><video id="faceVideo" class="camera-view w-full h-full" autoplay playsinline></video><canvas id="faceCanvas" class="snapshot-canvas w-full h-full"></canvas></div>
-                        <button type="button" id="captureFaceBtn" class="w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-indigo-700">拍摄面相</button>
-                        <div id="faceAnalysisResult" class="text-center font-medium h-5"></div>
+            <form id="submissionForm" class="space-y-8">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 p-6 border rounded-lg bg-gray-50">
+                    <div>
+                        <label for="age" class="block text-base font-medium text-gray-700">年龄</label>
+                        <input type="number" id="age" name="age" min="1" max="120" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-base">
                     </div>
-                    <!-- 舌象采集 -->
-                    <div class="space-y-2">
-                        <h2 class="text-xl font-semibold text-gray-700 text-center">舌象采集</h2>
-                        <div id="tongue-container" class="video-container"><video id="tongueVideo" class="camera-view w-full h-full" autoplay playsinline></video><canvas id="tongueCanvas" class="snapshot-canvas w-full h-full"></canvas></div>
-                        <button type="button" id="captureTongueBtn" class="w-full bg-pink-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-pink-700">拍摄舌象</button>
-                        <div id="tongueAnalysisResult" class="text-center font-medium h-5"></div>
+                    <div>
+                        <label for="gender" class="block text-base font-medium text-gray-700">性别</label>
+                        <select id="gender" name="gender" required class="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm text-base">
+                            <option value="男">男</option>
+                            <option value="女">女</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="height" class="block text-base font-medium text-gray-700">身高 (cm)</label>
+                        <input type="number" id="height" name="height" step="0.1" min="50" max="250" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-base">
+                    </div>
+                    <div>
+                        <label for="weight" class="block text-base font-medium text-gray-700">体重 (kg)</label>
+                        <input type="number" id="weight" name="weight" step="0.1" min="10" max="300" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-base">
                     </div>
                 </div>
-                <div><button type="submit" id="submitBtn" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-lg font-bold text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-400" disabled>提交生理数据</button></div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-12 mt-10">
+                    <div class="space-y-4">
+                        <h2 class="text-2xl font-semibold text-gray-700 text-center">面相采集</h2>
+                        <div id="face-initial-view" class="relative flex justify-center items-center h-48 border-2 border-dashed rounded-lg p-2">
+                            <button type="button" id="startFaceBtn" class="bg-indigo-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-indigo-700 text-lg">开始拍摄面相</button>
+                            <img id="face-preview-img" class="hidden w-full h-full object-contain rounded-lg" alt="面相预览">
+                        </div>
+                        <div id="faceAnalysisResult" class="text-center font-medium h-6 text-base"></div>
+                    </div>
+                    <div class="space-y-4">
+                        <h2 class="text-2xl font-semibold text-gray-700 text-center">舌象采集</h2>
+                        <div id="tongue-initial-view" class="relative flex justify-center items-center h-48 border-2 border-dashed rounded-lg p-2">
+                            <button type="button" id="startTongueBtn" class="bg-pink-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-pink-700 text-lg">开始拍摄舌象</button>
+                            <img id="tongue-preview-img" class="hidden w-full h-full object-contain rounded-lg" alt="舌象预览">
+                        </div>
+                        <div id="tongueAnalysisResult" class="text-center font-medium h-6 text-base"></div>
+                    </div>
+                </div>
+                <div class="hidden">
+                    <div id="face-capture-area">
+                        <div id="face-container" class="video-container">
+                            <video id="faceVideo" class="scalable-video" autoplay playsinline></video>
+                            <canvas id="faceCanvas" class="snapshot-canvas w-full h-full"></canvas>
+                        </div>
+                        <div class="mt-2">
+                            <input type="range" id="faceZoom" min="1" max="3" step="0.1" value="1" class="zoom-slider">
+                        </div>
+                    </div>
+                    <div id="tongue-capture-area">
+                        <div id="tongue-container" class="video-container">
+                            <video id="tongueVideo" class="scalable-video" autoplay playsinline></video>
+                            <canvas id="tongueCanvas" class="snapshot-canvas w-full h-full"></canvas>
+                        </div>
+                        <div class="mt-2">
+                            <input type="range" id="tongueZoom" min="1" max="3" step="0.1" value="1" class="zoom-slider">
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <button type="submit" id="submitBtn" class="w-full flex justify-center py-4 px-4 border border-transparent rounded-md shadow-sm text-xl font-bold text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-400" disabled>提交数据</button>
+                </div>
             </form>
-            <div id="dataDisplaySection" class="mt-8 hidden">
-                <h2 class="text-2xl font-semibold text-center text-gray-700 mb-4">我的提交记录</h2>
-                <div class="max-h-96 overflow-y-auto pr-2"><ul id="submissionList" class="space-y-4"></ul></div>
+            <div id="dataDisplaySection" class="mt-10 hidden">
+                <h2 class="text-3xl font-semibold text-center text-gray-700 mb-6">我的提交记录</h2>
+                <div class="max-h-96 overflow-y-auto pr-2">
+                    <ul id="submissionList" class="space-y-4"></ul>
+                </div>
             </div>
         </div>
     </div>
 </div>
-
+<div id="cameraModal" class="hidden fixed inset-0 bg-black bg-opacity-75 items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-lg shadow-xl p-4 md:p-6 w-full max-w-4xl">
+        <h2 id="modalTitle" class="text-2xl font-bold mb-4 text-center"></h2>
+        <div id="modal-video-container" class="relative bg-black rounded-lg overflow-hidden aspect-video"></div>
+        <div id="modal-controls" class="mt-4"></div>
+        <div class="mt-4 flex flex-col md:flex-row justify-end space-y-2 md:space-y-0 md:space-x-4">
+            <button type="button" id="modalCaptureBtn" class="w-full md:w-auto bg-indigo-600 text-white font-bold py-2 px-8 rounded-lg hover:bg-indigo-700 text-lg">拍摄</button>
+            <button type="button" id="modalCloseBtn" class="w-full md:w-auto bg-gray-500 text-white font-semibold py-2 px-6 rounded-lg hover:bg-gray-600 text-lg">关闭</button>
+        </div>
+    </div>
+</div>
 <script>
     document.addEventListener('DOMContentLoaded', () => {
+        // --- 元素获取 ---
         const getEl = (id) => document.getElementById(id);
         const pages = { auth: getEl('authPage'), submission: getEl('submissionPage') };
         const forms = { login: getEl('loginForm'), register: getEl('registerForm'), submission: getEl('submissionForm') };
@@ -105,16 +211,166 @@
         const dataDisplaySection = getEl('dataDisplaySection'), submissionList = getEl('submissionList');
         const globalMessage = getEl('globalMessage');
         const submitBtn = getEl('submitBtn');
-
-        const cameraModules = {
-            face: { video: getEl('faceVideo'), canvas: getEl('faceCanvas'), button: getEl('captureFaceBtn'), blob: null, approved: false, resultEl: getEl('faceAnalysisResult'), container: getEl('face-container') },
-            tongue: { video: getEl('tongueVideo'), canvas: getEl('tongueCanvas'), button: getEl('captureTongueBtn'), blob: null, approved: false, resultEl: getEl('tongueAnalysisResult'), container: getEl('tongue-container') }
+        const modal = {
+            el: getEl('cameraModal'),
+            title: getEl('modalTitle'),
+            videoContainer: getEl('modal-video-container'),
+            controls: getEl('modal-controls'),
+            captureBtn: getEl('modalCaptureBtn'),
+            closeBtn: getEl('modalCloseBtn')
         };
+        const cameraModules = {
+            face: {
+                video: getEl('faceVideo'),
+                canvas: getEl('faceCanvas'),
+                blob: null,
+                approved: false,
+                resultEl: getEl('faceAnalysisResult'),
+                container: getEl('face-container'),
+                captureArea: getEl('face-capture-area'),
+                startBtn: getEl('startFaceBtn'),
+                zoomSlider: getEl('faceZoom'),
+                type: 'face',
+                previewImg: getEl('face-preview-img'),
+                initialView: getEl('face-initial-view')
+            },
+            tongue: {
+                video: getEl('tongueVideo'),
+                canvas: getEl('tongueCanvas'),
+                blob: null,
+                approved: false,
+                resultEl: getEl('tongueAnalysisResult'),
+                container: getEl('tongue-container'),
+                captureArea: getEl('tongue-capture-area'),
+                startBtn: getEl('startTongueBtn'),
+                zoomSlider: getEl('tongueZoom'),
+                type: 'tongue',
+                previewImg: getEl('tongue-preview-img'),
+                initialView: getEl('tongue-initial-view')
+            }
+        };
+        let currentCameraModule = null;
 
+        // --- 核心交互逻辑 ---
+        function openCameraModal(imageType) {
+            currentCameraModule = cameraModules[imageType];
+            modal.title.textContent = imageType === 'face' ? '面相采集' : '舌象采集';
+            modal.captureBtn.textContent = '拍摄';
+            modal.captureBtn.disabled = false;
+
+            // 将摄像头相关元素移动到模态框中
+            modal.videoContainer.appendChild(currentCameraModule.container);
+            modal.controls.appendChild(currentCameraModule.zoomSlider);
+
+            // 确保视频显示，画布隐藏
+            currentCameraModule.video.style.display = 'block';
+            currentCameraModule.canvas.style.display = 'none';
+
+            // 显示模态框
+            modal.el.classList.remove('hidden');
+            modal.el.classList.add('flex');
+
+            startCamera(currentCameraModule.video);
+        }
+
+        function closeCameraModal() {
+            if (!currentCameraModule) return;
+
+            stopCamera(currentCameraModule.video);
+
+            // 将元素移回它们原始的、隐藏的容器中
+            currentCameraModule.captureArea.appendChild(currentCameraModule.container);
+            currentCameraModule.captureArea.appendChild(currentCameraModule.zoomSlider);
+
+            modal.el.classList.add('hidden');
+            modal.el.classList.remove('flex');
+
+            currentCameraModule = null;
+        }
+
+        async function handleCaptureInModal() {
+            if (!currentCameraModule) return;
+
+            // 1. 拍摄并获取图像数据
+            const blob = await captureImage(currentCameraModule);
+
+            // 2. "冻结"画面: 显示Canvas, 隐藏Video, 停止摄像头
+            currentCameraModule.video.style.display = 'none';
+            currentCameraModule.canvas.style.display = 'block';
+            stopCamera(currentCameraModule.video);
+
+            modal.captureBtn.disabled = true;
+            modal.captureBtn.textContent = '分析中...';
+
+            // 3. 显示"分析中"遮罩
+            const overlay = document.createElement('div');
+            overlay.className = 'analysis-overlay';
+            overlay.textContent = 'AI 图像质检中...';
+            modal.videoContainer.appendChild(overlay);
+
+            // 4. 调用AI进行分析
+            const analysisResult = await analyzeImageWithAI(blob, currentCameraModule.type);
+
+            // 5. 移除遮罩
+            if (modal.videoContainer.contains(overlay)) {
+                modal.videoContainer.removeChild(overlay);
+            }
+
+            // 6. 在主页面更新文字提示和颜色
+            showAnalysisResultOnMainPage(currentCameraModule, analysisResult);
+
+            // 7. 根据分析结果决定下一步
+            if (analysisResult.success) {
+                // 如果合格
+                currentCameraModule.blob = blob;
+                updateMainPagePreview(currentCameraModule, blob); // 在主页显示预览图
+                closeCameraModal(); // 关闭模态框
+            } else {
+                // 如果不合格
+                alert(`图片不合格: ${analysisResult.reason || '未知原因'}\n请调整后重新拍摄。`);
+                // 让用户确认弹窗后，重启摄像头以供重拍
+                currentCameraModule.video.style.display = 'block';
+                currentCameraModule.canvas.style.display = 'none';
+                startCamera(currentCameraModule.video);
+                modal.captureBtn.textContent = '重新拍摄';
+            }
+
+            modal.captureBtn.disabled = false;
+            checkIfReadyToSubmit();
+        }
+
+        function updateMainPagePreview(module, blob) {
+            const objectURL = URL.createObjectURL(blob);
+            module.previewImg.src = objectURL;
+            module.previewImg.classList.remove('hidden');
+            module.startBtn.classList.add('hidden');
+        }
+
+        function showAnalysisResultOnMainPage(module, result) {
+            const resultEl = module.resultEl;
+            if (!result) {
+                resultEl.textContent = '✗ 分析结果未知';
+                resultEl.className = 'text-center font-medium h-6 text-base text-red-600';
+                module.approved = false;
+                return;
+            }
+            if (result.success) {
+                resultEl.textContent = '✓ 图像质量合格';
+                resultEl.className = 'text-center font-medium h-6 text-base text-green-600';
+            } else {
+                resultEl.textContent = `✗ 不合格: ${result.reason || "未知原因"}`;
+                resultEl.className = 'text-center font-medium h-6 text-base text-red-600';
+            }
+            module.approved = result.success;
+        }
+
+        // --- 页面显示与切换逻辑 ---
         const showPage = (pageKey) => {
-            Object.values(pages).forEach(p => { p.style.display = 'none'; });
+            Object.values(pages).forEach(p => p.classList.add('hidden'));
             const pageToShow = pages[pageKey];
-            if (pageToShow) { pageToShow.style.display = 'block'; }
+            if (pageToShow) {
+                pageToShow.classList.remove('hidden');
+            }
             globalMessage.classList.add('hidden');
         };
 
@@ -124,15 +380,22 @@
             forms[formKey].style.display = 'block';
         };
 
-        links.toRegister.addEventListener('click', (e) => { e.preventDefault(); showAuthForm('register'); });
-        links.toLogin.addEventListener('click', (e) => { e.preventDefault(); showAuthForm('login'); });
+        links.toRegister.addEventListener('click', (e) => {
+            e.preventDefault();
+            showAuthForm('register');
+        });
+
+        links.toLogin.addEventListener('click', (e) => {
+            e.preventDefault();
+            showAuthForm('login');
+        });
 
         const showMessage = (text, isError = false) => {
             globalMessage.textContent = text;
             globalMessage.className = `mb-6 p-4 rounded-md text-center font-medium ${isError ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`;
-            globalMessage.classList.remove('hidden');
         };
 
+        // --- 核心功能逻辑 (保持不变) ---
         const apiCall = async (endpoint, options) => {
             try {
                 const response = await fetch(endpoint, options);
@@ -140,7 +403,7 @@
                 const data = isJson ? await response.json() : await response.text();
                 if (!response.ok) {
                     const errorMsg = typeof data === 'object' ? (data.message || JSON.stringify(data)) : data;
-                    throw new Error(errorMsg || '请求失败');
+                    throw new Error(errorMsg || '用户名或密码错误');
                 }
                 return data;
             } catch (error) {
@@ -154,7 +417,11 @@
             const username = getEl('registerUsername').value;
             const password = getEl('registerPassword').value;
             try {
-                await apiCall('/api/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
+                await apiCall('/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
                 showMessage('注册成功！请登录。');
                 showAuthForm('login');
             } catch (error) { /* handled in apiCall */ }
@@ -165,7 +432,11 @@
             const username = getEl('loginUsername').value;
             const password = getEl('loginPassword').value;
             try {
-                const data = await apiCall('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
+                const data = await apiCall('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
                 localStorage.setItem('jwtToken', data.token);
                 localStorage.setItem('username', username);
                 setupSubmissionPage(username);
@@ -174,28 +445,49 @@
 
         logoutBtn.addEventListener('click', () => {
             localStorage.clear();
-            Object.values(cameraModules).forEach(cam => stopCamera(cam.video));
+            Object.values(cameraModules).forEach(cam => {
+                if (cam.video.srcObject) stopCamera(cam.video);
+                resetCaptureState(cam);
+            });
             showPage('auth');
             showAuthForm('login');
+            dataDisplaySection.classList.add('hidden');
+            viewMyDataBtn.textContent = '查询我的数据';
         });
 
         function setupSubmissionPage(username) {
             welcomeUser.textContent = `欢迎, ${username}!`;
-            Object.values(cameraModules).forEach(cam => startCamera(cam.video));
             showPage('submission');
+        }
+
+        function resetPageAfterSubmission() {
+            forms.submission.reset();
+            Object.values(cameraModules).forEach(resetCaptureState);
+            checkIfReadyToSubmit();
+        };
+
+        function resetCaptureState(module) {
+            if (module.resultEl) module.resultEl.textContent = '';
+            module.blob = null;
+            module.approved = false;
+            module.previewImg.classList.add('hidden');
+            module.previewImg.src = '';
+            module.startBtn.classList.remove('hidden');
         }
 
         forms.submission.addEventListener('submit', async function(event) {
             event.preventDefault();
             if (submitBtn.disabled) return;
             const token = localStorage.getItem('jwtToken');
-            if (!token) { showPage('auth'); return; }
-
+            if (!token) {
+                showPage('auth');
+                return;
+            }
             const ageInput = getEl('age'), heightInput = getEl('height'), weightInput = getEl('weight');
             if (!ageInput.checkValidity() || !heightInput.checkValidity() || !weightInput.checkValidity()) {
-                alert('请输入有效范围内的年龄、身高和体重。'); return;
+                alert('请输入有效范围内的年龄、身高和体重。');
+                return;
             }
-
             showMessage('正在提交数据...');
             const formData = new FormData();
             formData.append('name', localStorage.getItem('username'));
@@ -205,29 +497,33 @@
             formData.append('weight', weightInput.value);
             formData.append('faceImage', new File([cameraModules.face.blob], "face_image.jpg", { type: 'image/jpeg' }));
             formData.append('tongueImage', new File([cameraModules.tongue.blob], "tongue_image.jpg", { type: 'image/jpeg' }));
-
             try {
-                const responseText = await apiCall('/api/data-submissions', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: formData });
+                const responseText = await apiCall('/api/data-submissions', {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token },
+                    body: formData
+                });
                 showMessage(responseText);
                 if (responseText === '数据保存成功') {
-                    forms.submission.reset();
-                    Object.values(cameraModules).forEach(cam => {
-                        resetCapture(cam);
-                    });
+                    resetPageAfterSubmission();
                 }
             } catch (error) { /* handled in apiCall */ }
         });
 
         viewMyDataBtn.addEventListener('click', async () => {
             const token = localStorage.getItem('jwtToken');
-            if (!token) { showPage('auth'); return; }
+            if (!token) {
+                showPage('auth');
+                return;
+            }
             const isHidden = dataDisplaySection.classList.toggle('hidden');
             viewMyDataBtn.textContent = isHidden ? '查询我的数据' : '隐藏提交记录';
             if (isHidden) return;
-
             submissionList.innerHTML = '<li>正在查询数据...</li>';
             try {
-                const data = await apiCall('/api/data-submissions', { headers: { 'Authorization': 'Bearer ' + token }});
+                const data = await apiCall('/api/data-submissions', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
                 submissionList.innerHTML = '';
                 if (data.length === 0) {
                     submissionList.innerHTML = '<li>您还没有任何提交记录。</li>';
@@ -237,131 +533,134 @@
                         const li = document.createElement('li');
                         li.className = 'p-4 border rounded-md bg-gray-50';
                         li.innerHTML = `
-                            <p><strong>提交时间:</strong> ${new Date(item.submissionTime).toLocaleString()}</p>
-                            <p><strong>姓名:</strong> ${item.name}, <strong>年龄:</strong> ${item.age}, <strong>性别:</strong> ${item.gender}</p>
-                            <p><strong>身高:</strong> ${item.height || 'N/A'} cm, <strong>体重:</strong> ${item.weight || 'N/A'} kg</p>
-                            <p>
-                                <a href="${item.faceImageUrl}" target="_blank" class="text-indigo-600 hover:underline">查看面相图片</a> |
-                                <a href="${item.tongueImageUrl}" target="_blank" class="text-pink-600 hover:underline">查看舌象图片</a>
-                            </p>
-                        `;
+                                <p><strong>提交时间:</strong> ${new Date(item.submissionTime).toLocaleString()}</p>
+                                <p><strong>姓名:</strong> ${item.name}, <strong>年龄:</strong> ${item.age}, <strong>性别:</strong> ${item.gender}</p>
+                                <p><strong>身高:</strong> ${item.height || 'N/A'} cm, <strong>体重:</strong> ${item.weight || 'N/A'} kg</p>
+                                <p>
+                                    <a href="${item.faceImageUrl}" target="_blank" class="text-indigo-600 hover:underline">查看面相图片</a> |
+                                    <a href="${item.tongueImageUrl}" target="_blank" class="text-pink-600 hover:underline">查看舌象图片</a>
+                                </p>
+                            `;
                         submissionList.appendChild(li);
                     });
                 }
-            } catch (error) { submissionList.innerHTML = `<li>查询失败: ${error.message}</li>`; }
+            } catch (error) {
+                submissionList.innerHTML = `<li>查询失败: ${error.message}</li>`;
+            }
         });
 
         async function analyzeImageWithAI(blob, imageType) {
-            const module = cameraModules[imageType];
-            const resultEl = module.resultEl;
-            const overlay = document.createElement('div');
-            overlay.className = 'analysis-overlay';
-            overlay.textContent = 'AI 图像质检中...';
-            module.container.appendChild(overlay);
-            resultEl.textContent = '分析中...';
-            resultEl.className = 'text-center font-medium text-gray-500';
-
-            return new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(blob);
-                reader.onloadend = async () => {
-                    const base64Data = reader.result.split(',')[1];
-                    const prompt = imageType === 'tongue' ? "你是一位专业的中医舌象质检员。请判断这张图片是否是一张清晰、光照良好、能完整看到舌体的舌象图片，适合用于诊断。请以JSON格式返回结果，包含布尔值字段: isTongue, isClear, goodLighting, isComplete, 以及一个中文的 reason 字符串说明不合格的原因。" : "你是一位专业的人脸识别系统质检员。请判断这张图片是否是一张清晰、光照均匀、五官无遮挡的正面人脸照片。请以JSON格式返回结果，包含布尔值字段: isFace, isClear, goodLighting, noObstruction, 以及一个中文的 reason 字符串说明不合格的原因。";
-                    const payload = { contents: [{ parts: [{ "text": prompt }, { "inline_data": { "mime_type": "image/jpeg", "data": base64Data } }] }], generationConfig: { "response_mime_type": "application/json" } };
-
-                    try {
-                        const apiKey = "AIzaSyCYTAXrqUBWjVSgQ9YyMGzhDbIGt4QHkg0"; // <-- 在这里粘贴您的API密钥
-                        if (!apiKey || apiKey === "YOUR_GEMINI_API_KEY_HERE") {
-                            throw new Error("请在代码中配置您的 Gemini API 密钥。");
-                        }
-                        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-                        const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-                        if (!response.ok) throw new Error(`AI服务器错误: ${response.statusText}`);
-                        const result = await response.json();
-                        const analysisJson = JSON.parse(result.candidates[0].content.parts[0].text);
-
-                        let isApproved = imageType === 'tongue' ? (analysisJson.isTongue && analysisJson.isClear && analysisJson.goodLighting && analysisJson.isComplete) : (analysisJson.isFace && analysisJson.isClear && analysisJson.goodLighting && analysisJson.noObstruction);
-
-                        if (isApproved) {
-                            resultEl.textContent = '✓ 图像质量合格';
-                            resultEl.className = 'text-center font-medium text-green-600';
-                            resolve({ success: true });
-                        } else {
-                            resultEl.textContent = `✗ 不合格: ${analysisJson.reason || "未知原因"}`;
-                            resultEl.className = 'text-center font-medium text-red-600';
-                            resolve({ success: false });
-                        }
-                    } catch (error) {
-                        console.error("AI分析失败:", error);
-                        resultEl.textContent = `✗ AI分析失败: ${error.message}`;
-                        resultEl.className = 'text-center font-medium text-red-600';
-                        resolve({ success: false });
-                    } finally {
-                        if (module.container.contains(overlay)) {
-                            module.container.removeChild(overlay);
-                        }
-                    }
-                };
-            });
+            const token = localStorage.getItem('jwtToken');
+            if (!token) {
+                showMessage('用户未登录，请重新登录。', true);
+                return { success: false };
+            }
+            const formData = new FormData();
+            formData.append('image', blob, `${imageType}.jpg`);
+            formData.append('imageType', imageType);
+            try {
+                const response = await fetch('/api/ai/analyze-image', {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token },
+                    body: formData
+                });
+                const analysisJson = await response.json();
+                if (response.status === 401 || response.status === 403) {
+                    // 如果是401或403错误，说明是登录过期或无权限
+                    throw new Error("您的登录已过期或无效，请退出后重新登录。");
+                }
+                if (!response.ok) {
+                    throw new Error(analysisJson.reason || `服务器错误: ${response.statusText}`);
+                }
+                return analysisJson;
+            } catch (error) {
+                console.error("AI分析失败:", error);
+                return { success: false, reason: error.message };
+            }
         }
 
         async function startCamera(video) {
             if (video.srcObject) return;
-            try { video.srcObject = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 }, audio: false }); } catch (err) { alert("无法访问摄像头。"); }
+
+            // 核心修正：请求更高清的视频流
+            const constraints = {
+                audio: false,
+                video: {
+                    facingMode: 'user',
+                    // 'ideal' 的意思是“理想值”，浏览器会尽力满足。
+                    // 如果设备不支持，它会自动降级到一个支持的分辨率，而不会报错或黑屏。
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 }
+                }
+            };
+
+            try {
+                video.srcObject = await navigator.mediaDevices.getUserMedia(constraints);
+            } catch (err) {
+                console.error("启动高清摄像头失败，尝试使用默认配置:", err);
+                // 如果高清请求失败（某些严格的浏览器或特殊设备），则不带任何分辨率参数重试一次
+                try {
+                    const fallbackConstraints = {
+                        audio: false,
+                        video: { facingMode: 'user' }
+                    };
+                    video.srcObject = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
+                } catch (fallbackErr) {
+                    console.error("使用默认配置启动摄像头仍然失败:", fallbackErr);
+                    alert(`无法访问摄像头(${fallbackErr.name})。请检查浏览器权限。`);
+                    closeCameraModal(); // 确保在失败时关闭模态框
+                }
+            }
         }
+
         function stopCamera(video) {
-            video.srcObject?.getTracks().forEach(t => t.stop());
+            if (!video.srcObject) return;
+            video.srcObject.getTracks().forEach(t => t.stop());
             video.srcObject = null;
         }
 
-        function resetCapture(module) {
-            module.video.style.display = 'block';
-            module.canvas.style.display = 'none';
-            module.button.textContent = `拍摄${module.video.id.includes('face') ? '面相' : '舌象'}`;
-            module.button.classList.remove('bg-gray-500');
-            module.button.classList.add(module.video.id.includes('face') ? 'bg-indigo-600' : 'bg-pink-600');
-            if(module.resultEl) module.resultEl.textContent = '';
-            module.blob = null;
-            module.approved = false;
-            checkIfReadyToSubmit();
+        function applyZoom(module) {
+            const zoomLevel = module.zoomSlider.value;
+            module.video.style.transform = `scale(${zoomLevel})`;
         }
 
-        async function handleCapture(imageType) {
-            const module = cameraModules[imageType];
-            if (module.button.textContent.includes('重新拍摄')) {
-                resetCapture(module);
-                return;
-            }
-            const canvas = module.canvas;
-            const video = module.video;
-            const button = module.button;
+        function captureImage(module) {
+            const { video, canvas, zoomSlider } = module;
             const ctx = canvas.getContext('2d');
-            canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            canvas.style.display = 'block'; video.style.display = 'none';
-            button.textContent = '重新拍摄';
-            button.classList.remove('bg-indigo-600', 'bg-pink-600'); button.classList.add('bg-gray-500');
-
-            const blob = await new Promise(resolve => canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.9));
-            if (blob) {
-                const analysisResult = await analyzeImageWithAI(blob, imageType);
-                module.blob = analysisResult.success ? blob : null;
-                module.approved = analysisResult.success;
-            }
-            checkIfReadyToSubmit();
+            const zoom = parseFloat(zoomSlider.value);
+            const sourceWidth = video.videoWidth / zoom;
+            const sourceHeight = video.videoHeight / zoom;
+            const sx = (video.videoWidth - sourceWidth) / 2;
+            const sy = (video.videoHeight - sourceHeight) / 2;
+            canvas.width = sourceWidth;
+            canvas.height = sourceHeight;
+            ctx.drawImage(video, sx, sy, sourceWidth, sourceHeight, 0, 0, canvas.width, canvas.height);
+            return new Promise(resolve => canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.9));
         }
 
         function checkIfReadyToSubmit() {
             submitBtn.disabled = !(cameraModules.face.approved && cameraModules.tongue.approved);
         }
 
-        cameraModules.face.button.addEventListener('click', () => handleCapture('face'));
-        cameraModules.tongue.button.addEventListener('click', () => handleCapture('tongue'));
+        // --- 事件监听 ---
+        cameraModules.face.startBtn.addEventListener('click', () => openCameraModal('face'));
+        cameraModules.tongue.startBtn.addEventListener('click', () => openCameraModal('tongue'));
+        modal.captureBtn.addEventListener('click', handleCaptureInModal);
+        modal.closeBtn.addEventListener('click', closeCameraModal);
 
+        Object.values(cameraModules).forEach(cam => {
+            cam.zoomSlider.addEventListener('input', () => applyZoom(cam));
+        });
+
+        // --- 初始化检查 ---
         const token = localStorage.getItem('jwtToken');
         const username = localStorage.getItem('username');
-        if (token && username) { setupSubmissionPage(username); }
-        else { showPage('auth'); showAuthForm('login'); }
+        if (token && username) {
+            setupSubmissionPage(username);
+        } else {
+            showPage('auth');
+            showAuthForm('login');
+        }
     });
 </script>
 </body>
